@@ -49,6 +49,16 @@ async def async_setup_entry(
         button_entity = add_room_and_cat_to_value_values(loxconfig, button_entity)
         entities.append(LoxoneButton(**button_entity))
 
+    # IntercomV2 door openers (its Pushbutton sub-controls). Imported here:
+    # intercom.py builds on LoxoneButton from this module.
+    from .intercom import intercom_buttons, intercom_controls
+
+    try:
+        for control in intercom_controls(loxconfig):
+            entities.extend(intercom_buttons(control))
+    except Exception:
+        _LOGGER.exception("Skipping IntercomV2 controls")
+
     async_add_entities(entities)
 
 

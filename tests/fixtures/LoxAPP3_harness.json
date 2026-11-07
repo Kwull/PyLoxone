@@ -140,7 +140,7 @@
       "room": "726f6f6d-0101-9617-ffff-c6f7572726f6000001",
       "cat": "6361743a-0108-96d6-ffff-f72746361743000008",
       "details": {
-        "format": "%.1f \u00b0C",
+        "format": "%.1f °C",
         "layout": "IconDigitalRoom,RoomContentsDigital,IconDigitalRoomContents"
       },
       "states": {
@@ -293,7 +293,7 @@
             "id": 2
           }
         ],
-        "format": "%.1f \u00b0",
+        "format": "%.1f °",
         "connectedInputs": 0
       },
       "states": {
@@ -330,7 +330,7 @@
           "uuidAction": "7375623a-0138-9647-ffff-f6f6d20436f6000056",
           "details": {
             "analog": true,
-            "format": "%.1f \u00b0"
+            "format": "%.1f °"
           },
           "states": {
             "entriesAndDefaultValue": "37333735-0139-9336-ffff-d303133382d3000057",
@@ -952,8 +952,15 @@
         "devices": {
           "1": "Living Room Speaker"
         },
-        "sources": ["Radio", "Library", "AirPlay"],
-        "favourites": ["Classical Mix", "Jazz Station"]
+        "sources": [
+          "Radio",
+          "Library",
+          "AirPlay"
+        ],
+        "favourites": [
+          "Classical Mix",
+          "Jazz Station"
+        ]
       },
       "states": {
         "active": "36333734-01b7-9336-ffff-d303162362d3000183",
@@ -1162,6 +1169,98 @@
         "green": "1d6c95a2-00b6-e479-ffff0d3a09848c7c",
         "blue": "1d6c95a2-00b6-e47a-ffff0d3a09848c7c",
         "color": "1d6c95a2-00b6-e47c-ffff0d3a09848c7c"
+      }
+    },
+    "696e7463-0170-9747-ffff-f64756365205000170": {
+      "name": "Entrance Intercom",
+      "type": "IntercomV2",
+      "uuidAction": "696e7463-0170-9747-ffff-f64756365205000170",
+      "room": "726f6f6d-0101-9617-ffff-c6f7572726f6000001",
+      "cat": "6361743a-0108-96d6-ffff-f72746361743000008",
+      "defaultRating": 5,
+      "isFavorite": true,
+      "isSecured": false,
+      "restrictions": 0,
+      "details": {
+        "jLockable": true,
+        "deviceType": 1,
+        "serialNr": "504F94E0C29E",
+        "deviceUuid": "696e7463-0171-aec4-ffff-f64756365205000171",
+        "deviceName": "Intercom",
+        "optionsFramerate": [
+          {
+            "id": 5,
+            "name": "5 fps"
+          },
+          {
+            "id": 10,
+            "name": "10 fps"
+          }
+        ],
+        "optionsResolution": [
+          {
+            "id": 240,
+            "name": "240p"
+          },
+          {
+            "id": 720,
+            "name": "720p"
+          }
+        ]
+      },
+      "states": {
+        "jLocked": "696e7463-0172-b895-ffff-f64756365205000172",
+        "muted": "696e7463-0173-b893-ffff-f64756365205000173",
+        "bell": "696e7463-0174-b8a6-ffff-f64756365205000174",
+        "version": "696e7463-0175-b8a5-ffff-f64756365205000175",
+        "address": "696e7463-0176-b8a7-ffff-f64756365205000176",
+        "answers": "696e7463-0177-b8a8-ffff-f64756365205000177",
+        "deviceState": "696e7463-0178-b8a9-ffff-f64756365205000178",
+        "videoSettingsIntern": "696e7463-0179-b8aa-ffff-f64756365205000179",
+        "videoSettingsExtern": "696e7463-0180-b8ab-ffff-f64756365205000180",
+        "bellPreviewMode": "696e7463-0181-93d2-ffff-f64756365205000181"
+      },
+      "subControls": {
+        "696e7463-0170-9747-ffff-f64756365205000170/1": {
+          "name": "Wicket",
+          "type": "Pushbutton",
+          "uuidAction": "696e7463-0170-9747-ffff-f64756365205000170/1",
+          "defaultRating": 0,
+          "isFavorite": false,
+          "isSecured": false,
+          "restrictions": 0,
+          "states": {
+            "active": "696e7463-0182-b89c-ffff-f64756365205000182"
+          }
+        },
+        "696e7463-0170-9747-ffff-f64756365205000170/2": {
+          "name": "Gate",
+          "type": "Pushbutton",
+          "uuidAction": "696e7463-0170-9747-ffff-f64756365205000170/2",
+          "defaultRating": 0,
+          "isFavorite": false,
+          "isSecured": false,
+          "restrictions": 0,
+          "states": {
+            "active": "696e7463-0183-b89d-ffff-f64756365205000183"
+          }
+        }
+      }
+    },
+    "74657874-0190-d079-ffff-f64756365205000190": {
+      "name": "Parcel Box",
+      "type": "TextState",
+      "uuidAction": "74657874-0190-d079-ffff-f64756365205000190",
+      "room": "726f6f6d-0101-9617-ffff-c6f7572726f6000001",
+      "cat": "6361743a-0108-96d6-ffff-f72746361743000008",
+      "defaultRating": 0,
+      "isFavorite": true,
+      "isSecured": false,
+      "defaultIcon": null,
+      "restrictions": 0,
+      "states": {
+        "textAndIcon": "74657874-0190-d079-ffff-f64756365205000190",
+        "iconAndColor": "74657874-0191-d07a-ffff-f64756365205000191"
       }
     }
   }

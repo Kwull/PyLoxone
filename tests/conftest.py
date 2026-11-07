@@ -66,6 +66,9 @@ def mock_connection(hass, loxapp3, enable_custom_integrations):
 
     * ``feed(uuid, value)`` -- deliver one state message exactly the way the
       live listener does (the ``loxone_event`` bus event entities subscribe to)
+    * ``callback(message)`` -- the integration's listener callback itself
+      (``await`` it): the path ``run()`` takes for every Miniserver message,
+      including what the integration derives from it (e.g. ``loxone_notification``)
     * ``sent`` -- list of ``{"uuid", "value", "code"}`` dicts, one per command
     """
     from custom_components.loxone import helpers
@@ -93,6 +96,7 @@ def mock_connection(hass, loxapp3, enable_custom_integrations):
     async def _fake_run(self, on_state=None, callback=None, **kwargs):
         # The supervisor: report "connected", then stay up until close()
         # (entry unload) ends the session.
+        namespace.callback = callback
         if on_state is not None:
             on_state("connected")
         await self._fake_closed.wait()

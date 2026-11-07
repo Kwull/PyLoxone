@@ -36,10 +36,12 @@ from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
                     CONF_SCENE_GEN_DELAY, CONF_VERIFY_SSL, DEFAULT,
                     DEFAULT_DELAY_SCENE, DEFAULT_PORT, DEFAULT_VERIFY_SSL,
                     DOMAIN, DOMAIN_DEVICES, ERROR_VALUE, EVENT, LOXONE_PLATFORMS,
+                    NOTIFICATION_EVENT,
                     SECUREDSENDDOMAIN, SENDDOMAIN, SERVICE_REFRESH_TOKEN, cfmt)
 from .coordinator import LoxoneCoordinator
 from .helpers import get_miniserver_type
 from .miniserver import MiniServer, get_miniserver_from_hass
+from .notifications import notifications_state_uuid, parse_notification
 from .pyloxone_api.connection import LoxoneConnection
 from .pyloxone_api.exceptions import (LoxoneAuthEscalatedError,
                                       LoxoneConnectionClosedOk,
@@ -651,6 +653,12 @@ async def async_setup_entry(hass, config_entry):
             )
             _schedule_reload(UNEXPECTED_FAILURE_RELOAD_DELAY)
 
+    # The Miniserver's push notifications arrive as a text event on this
+    # global state; each one is also fired as ``loxone_notification``
+    # (see notifications.py), flattened for automations.
+    notifications_uuid = notifications_state_uuid(coordinator.miniserver.lox_config.json)
+    miniserver_serial = coordinator.miniserver.serial
+
     async def message_callback(message):
         """Fire message on HomeAssistant Bus."""
         # Lazy %-args — this runs for every Miniserver event, so the dict
@@ -658,6 +666,9 @@ async def async_setup_entry(hass, config_entry):
         # bans the f-string variant; do not "simplify" it back.
         _LOGGER.debug("%s", message)
         hass.bus.async_fire(EVENT, message)
+        if notifications_uuid and isinstance(message, dict) and notifications_uuid in message:
+            fields = parse_notification(message[notifications_uuid])
+            hass.bus.async_fire(NOTIFICATION_EVENT, {"miniserver": miniserver_serial, **fields})
 
     async def loxone_discovered(event):
         _LOGGER.info("Creating groups")

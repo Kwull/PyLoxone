@@ -25,6 +25,7 @@ LOXONE_PLATFORMS: Final[list[Platform]] = [
     Platform.SCENE,
     Platform.SELECT,
     Platform.TEXT,
+    Platform.EVENT,
 ]
 
 LOXONE_DEFAULT_PORT = 8080
@@ -36,6 +37,8 @@ DEFAULT_DELAY_SCENE = 3
 DEFAULT_IP = ""
 
 EVENT = "loxone_event"
+# Fired for every Miniserver notification (see notifications.py).
+NOTIFICATION_EVENT = "loxone_notification"
 DOMAIN = "loxone"
 LOX_CONFIG = "loxconfig"
 

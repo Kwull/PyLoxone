@@ -36,6 +36,8 @@ from .const import CLIMATE_EVENT, CONF_ACTIONID, DOMAIN, EVENT, SENDDOMAIN, THRO
 from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
+from .notifications import (notification_state, notifications_state_uuid,
+                            parse_notification)
 from .window_monitor import (LoxoneWindowPositionSensor,
                              window_contacts, window_monitor_controls,
                              window_monitor_count_sensors)
@@ -244,6 +246,16 @@ async def async_setup_entry(
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
         entities.append(LoxoneTextSensor(**sensor))
 
+    # TextState ("State" block): a text with an icon and a colour.
+    for sensor in get_all(loxconfig, "TextState"):
+        sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
+        entities.append(LoxoneTextStateSensor(**sensor))
+
+    # The Miniserver's notifications (global state), see notifications.py.
+    notifications_uuid = notifications_state_uuid(loxconfig)
+    if notifications_uuid:
+        entities.append(LoxoneNotificationSensor(miniserver.serial, notifications_uuid))
+
     for sensor in get_all(loxconfig, "Meter"):
         _LOGGER.debug("Found Meter: %s", sensor)
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
@@ -431,6 +443,42 @@ class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
         """Return a unique ID."""
         return f"{self._miniserver_serial}-{self._attr_unique_id}"
 
+class LoxoneNotificationSensor(LoxoneEntity, SensorEntity):
+    """The last notification the Miniserver pushed to this user (see
+    notifications.py for the shape)."""
+
+    _attr_name = "Loxone Last Notification"
+    _attr_icon = "mdi:bell-ring-outline"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_should_poll = False
+
+    def __init__(self, miniserver_serial: str, state_uuid: str):
+        super().__init__()
+        self._miniserver_serial = miniserver_serial
+        self._state_uuid = state_uuid
+        self._attr_native_value = None
+        self._fields: dict[str, Any] = {}
+
+    @cached_property
+    def unique_id(self) -> str:
+        return f"{self._miniserver_serial}-loxone_last_notification"
+
+    async def event_handler(self, e):
+        if self._state_uuid not in e.data:
+            return
+        self._fields = parse_notification(e.data[self._state_uuid])
+        self._attr_native_value = notification_state(self._fields) or None
+        self.async_write_ha_state()
+
+    @property
+    def extra_state_attributes(self):
+        return {
+            **self._attr_extra_state_attributes,
+            "state_uuid": self._state_uuid,
+            **{k: v for k, v in self._fields.items()},
+        }
+
+
 class LoxoneTextSensor(LoxoneEntity, SensorEntity):
     """Representation of a Text Sensor."""
 
@@ -467,6 +515,60 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
         return {
             **self._attr_extra_state_attributes,
             "device_type": self.type,
+        }
+
+
+class LoxoneTextStateSensor(LoxoneEntity, SensorEntity):
+    """A ``TextState`` control: the text of ``textAndIcon``, with the icon
+    and colour of ``iconAndColor`` (a JSON ``{"icon": ..., "color": ...}``)
+    as attributes. Both arrive as text events."""
+
+    _attr_icon = "mdi:text-box-outline"
+    _attr_should_poll = False
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._attr_native_value = None
+        self._loxone_icon: str | None = None
+        self._color: str | None = None
+        self._attr_device_info = get_or_create_device(
+            self.unique_id, self.name, self.type, self.room
+        )
+
+    async def event_handler(self, e):
+        changed = False
+        text_uuid = self.states.get("textAndIcon")
+        if text_uuid and text_uuid in e.data:
+            value = e.data[text_uuid]
+            self._attr_native_value = str(value)[:255] if value is not None else None
+            changed = True
+        icon_uuid = self.states.get("iconAndColor")
+        if icon_uuid and icon_uuid in e.data:
+            value = e.data[icon_uuid]
+            parsed = None
+            if isinstance(value, dict):
+                parsed = value
+            elif isinstance(value, str) and value.strip():
+                try:
+                    parsed = json.loads(value)
+                except ValueError:
+                    parsed = None
+            if isinstance(parsed, dict):
+                self._loxone_icon = parsed.get("icon") or None
+                self._color = parsed.get("color") or None
+            changed = True
+        if changed:
+            self.async_write_ha_state()
+
+    @property
+    def extra_state_attributes(self):
+        """Return device specific state attributes."""
+        return {
+            **self._attr_extra_state_attributes,
+            "state_uuid": self.states.get("textAndIcon"),
+            "device_type": self.type,
+            "loxone_icon": self._loxone_icon,
+            "color": self._color,
         }
 
 

@@ -23,6 +23,8 @@ from . import LoxoneEntity
 from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
 from .helpers import (add_room_and_cat_to_value_values, get_all,
                       get_or_create_device)
+from .intercom import (LoxoneIntercomBell, LoxoneIntercomOnline,
+                       intercom_controls)
 from .miniserver import get_miniserver_from_hass
 from .window_monitor import LoxoneWindowContactSensor, window_contacts
 
@@ -87,6 +89,15 @@ async def async_setup_entry(
         entities.extend(LoxoneWindowContactSensor(contact) for contact in window_contacts(loxconfig))
     except Exception:
         _LOGGER.exception("Skipping WindowMonitor controls")
+
+    # IntercomV2: bell and online (intercom.py). The doorbell event and the
+    # door-opener buttons are on their own platforms.
+    try:
+        for control in intercom_controls(loxconfig):
+            entities.append(LoxoneIntercomBell(control))
+            entities.append(LoxoneIntercomOnline(control))
+    except Exception:
+        _LOGGER.exception("Skipping IntercomV2 controls")
 
     @callback
     def async_add_binary_sensors(_):

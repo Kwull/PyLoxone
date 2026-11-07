@@ -55,6 +55,7 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 - Switch, TimedSwitch and Pushbutton
 - Jalousie, Window and Gate
 - Intercom
+- IntercomV2 (Loxone Intercom Gen. 2): bell, doorbell event, online state, door-opener buttons
 - LightControllerV2
 - Alarm
 - Fan
@@ -62,7 +63,66 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 - AudioZoneV2
 - Slider and ValueSelector (Up-Down Buttons)
 - TextInput
+- TextState (the "State" block: text, icon and colour)
 - Radio Buttons
+- Miniserver notifications (event `loxone_notification` and the sensor "Loxone Last Notification")
+
+## IntercomV2 (Loxone Intercom Gen. 2)
+
+One device per intercom with:
+
+- `binary_sensor.<name>_bell` (device class *sound*): on while somebody rings. Attributes: the quick replies
+  (`answers`), the intercom's `address`, `version`, `muted`, `device_serial`.
+- `event.<name>_doorbell` (device class *doorbell*): event type `ring` at the start of every ring. Trigger
+  automations on this one.
+- `binary_sensor.<name>_online` (diagnostic): the intercom device's link to the Miniserver.
+- One `button` per sub-control (the door openers shown during a call), e.g. `button.<name>_gate`.
+
+```yaml
+automation:
+  - alias: Someone rings at the gate
+    triggers:
+      - trigger: state
+        entity_id: event.entrance_intercom_doorbell
+    actions:
+      - action: notify.mobile_app_my_phone
+        data:
+          message: Someone is at the gate
+```
+
+No camera entity: an `IntercomV2` answers `jdev/sps/io/<uuid>/securedDetails` with `{}` (the V1 `Intercom` way
+to the stream), the Gen. 2 intercom streams WebRTC to the Loxone app through the Miniserver
+(`wss://<miniserver>/proxy/<deviceUuid>/`), and its own MJPEG endpoint sits on the intercom's LAN address.
+For video in Home Assistant use a bridge such as
+[loxone-intercom2](https://github.com/markuslaube/loxone-intercom2) (WebRTC to go2rtc), which also works
+through Loxone Cloud DNS.
+
+## TextState
+
+A `TextState` ("State" block) is a sensor whose state is the text; the attributes `loxone_icon` and `color`
+carry what the block shows next to it.
+
+## Miniserver notifications
+
+Every push notification the Miniserver sends to the configured user also reaches Home Assistant (the
+`notifications` global state):
+
+- the event `loxone_notification` with `miniserver` (serial), `uid`, `ts`, `type`, `title`, `message`,
+  `level` (1 info, 2 error, 3 system error), `level_name`, `control_uuid` and `raw`;
+- the diagnostic sensor "Loxone Last Notification" (state `<title>: <message>`, the same fields as attributes).
+
+```yaml
+automation:
+  - alias: Forward Loxone notifications
+    triggers:
+      - trigger: event
+        event_type: loxone_notification
+    actions:
+      - action: notify.mobile_app_my_phone
+        data:
+          title: "{{ trigger.event.data.title }}"
+          message: "{{ trigger.event.data.message }}"
+```
 
 ## Known Limitations
 
