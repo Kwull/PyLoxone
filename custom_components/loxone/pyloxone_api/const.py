@@ -30,6 +30,10 @@ WEBSOCKET_CLOSE_TIMEOUT: Final = 10  # seconds to wait for a clean close
 WEBSOCKET_READ_TIMEOUT: Final = 90
 DELAY_CHECK_TOKEN_REFRESH: Final = 20
 TIMEOUT: Final = 30
+# Cloud DNS: resolver host, and how long one try of a remembered relay may take
+# before the bootstrap falls back to Cloud DNS.
+CLOUD_DNS_HOST: Final = "dns.loxonecloud.com"
+RELAY_PROBE_TIMEOUT: Final = 10
 KEEP_ALIVE_PERIOD: Final = 30
 THROTTLE_CHECK_TOKEN_STILL_VALID: Final = (
     90  # 90 * KEEP_ALIVE_PERIOD -> 43200 sek -> 6 h

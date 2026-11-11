@@ -67,6 +67,15 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 - Radio Buttons
 - Miniserver notifications (event `loxone_notification` and the sensor "Loxone Last Notification")
 
+## Cloud DNS: the relay is remembered
+
+With a Cloud DNS address (`https://dns.loxonecloud.com/<serial>`), Loxone's Cloud DNS answers with a redirect to the
+Miniserver's relay (`https://<ip>.<serial>.dyndns.loxonecloud.com:<port>`). The integration remembers that relay in
+the config entry (next to the token) and goes there first on every setup, reload, restart and reconnect, with one
+10-second try. Cloud DNS is only asked when the relay does not answer or answers for another Miniserver (a new public
+IP or port), and the new relay is remembered again. So Cloud DNS is needed only when the relay moves, not on every
+setup.
+
 ## IntercomV2 (Loxone Intercom Gen. 2)
 
 One device per intercom with:

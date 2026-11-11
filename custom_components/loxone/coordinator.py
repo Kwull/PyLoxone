@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL
+from .const import CONF_RELAY_URL, CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL
 from .miniserver import MiniServer
 from .pyloxone_api.connection import LoxoneConnection, LoxoneException
 
@@ -100,6 +100,23 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                 "Failed to persist updated token: %s", e, exc_info=True
             )
 
+    def _on_relay_changed(self, relay_url: str) -> None:
+        """Persist the Cloud DNS relay into ``ConfigEntry.data``.
+
+        The next setup (reload, HA restart) goes straight to it and asks
+        Cloud DNS only when the relay has moved. Stored in ``data``, not
+        ``options``: an options change reloads the entry.
+        """
+        if self.config_entry.data.get(CONF_RELAY_URL) == relay_url:
+            return
+        try:
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data={**self.config_entry.data, CONF_RELAY_URL: relay_url},
+            )
+        except Exception as e:  # noqa: BLE001 - must not break the connection
+            _LOGGER.warning("Failed to persist the Loxone relay URL: %s", e, exc_info=True)
+
     async def async_config_entry_first_refresh(self) -> None:
         _LOGGER.debug("async_config_entry_first_refresh")
         if self.api and self.api.connection:
@@ -124,6 +141,8 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                 # so a HA restart can resume without a fresh
                 # username/password auth.
                 token_change_callback=self._on_token_changed,
+                relay_url=self.config_entry.data.get(CONF_RELAY_URL),
+                relay_change_callback=self._on_relay_changed,
             )
         else:
             self.api = LoxoneConnection(
@@ -134,6 +153,8 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                 verify_ssl=self._verify_ssl,
                 executor=self.hass.async_add_executor_job,
                 token_change_callback=self._on_token_changed,
+                relay_url=self.config_entry.data.get(CONF_RELAY_URL),
+                relay_change_callback=self._on_relay_changed,
             )
         try:
             session = async_get_clientsession(self.hass)

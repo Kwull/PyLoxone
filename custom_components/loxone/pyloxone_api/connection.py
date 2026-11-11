@@ -32,7 +32,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 from Crypto.Util import Padding
 
-from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
+from .const import (AES_KEY_SIZE, CLOUD_DNS_HOST, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_GET_API_KEY, CMD_GET_KEY, CMD_GET_KEY_AND_SALT,
                     CMD_GET_PUBLIC_KEY, CMD_GET_VISUAL_PASSWD, CMD_KEEP_ALIVE,
                     CMD_KEY_EXCHANGE, CMD_KILL_TOKEN, CMD_REFRESH_TOKEN,
@@ -41,7 +41,7 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     IV_BYTES, KEEP_ALIVE_PERIOD, LLRSP_UNAUTHORISED_CODES,
                     LOXAPPPATH, MAX_RECONNECT_DELAY, MAX_REFRESH_DELAY,
                     MAX_WEBSOCKET_MESSAGE_SIZE, MESSAGE_HEADER_SIZE,
-                    RECONNECT_DELAY, RECONNECT_TRIES, SALT_BYTES,
+                    RECONNECT_DELAY, RECONNECT_TRIES, RELAY_PROBE_TIMEOUT, SALT_BYTES,
                     SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
                     SECURED_COMMAND_TIMEOUT, TIMEOUT,
                     TOKEN_PERMISSION, TOKEN_REFRESH_MAX_FAILURES,
@@ -230,6 +230,16 @@ def _command_path_for_log(command: str) -> str:
     return f"{path}/…" if len(parts) > keep else path
 
 
+def is_cloud_dns_host(hostname: str | None) -> bool:
+    """True for Loxone's Cloud DNS resolver host (``dns.loxonecloud.com``)."""
+    return bool(hostname) and hostname.lower().rstrip(".") == CLOUD_DNS_HOST
+
+
+def normalize_serial(serial: str | None) -> str:
+    """``50:4F:94:A2:2B:D7`` and ``504f94a22bd7`` -> ``504F94A22BD7``."""
+    return (serial or "").replace(":", "").replace("-", "").strip().upper()
+
+
 def parse_loxone_url(url: str) -> tuple[str, str]:
     """Parse a Loxone URL into ``(scheme, host[:port][/path])``.
 
@@ -326,6 +336,8 @@ class LoxoneBaseConnection:
         verify_ssl: bool = True,
         executor: Optional[Callable[..., Any]] = None,
         token_change_callback: Optional[Callable[..., Any]] = None,
+        relay_url: Optional[str] = None,
+        relay_change_callback: Optional[Callable[..., Any]] = None,
     ):
         # Validate input parameters
         if not host or not isinstance(host, str):
@@ -445,6 +457,26 @@ class LoxoneBaseConnection:
         else:
             self.url = f"{netloc}{parsed.path}"
 
+        # Cloud DNS (``dns.loxonecloud.com/<serial>``) answers every
+        # bootstrap with a redirect to the Miniserver's relay
+        # (``https://<ip>.<serial>.dyndns.loxonecloud.com:<port>``).
+        # The relay is remembered (``relay_url``, persisted by the caller
+        # through ``relay_change_callback``) and tried first, so Cloud DNS
+        # is only asked when the relay has moved.
+        self._cloud_dns: Optional[tuple[str, str]] = (
+            (self.scheme, self.url) if is_cloud_dns_host(netloc) else None
+        )
+        self._cloud_dns_serial: str = (
+            normalize_serial(parsed.path.strip("/").split("/")[0]) if self._cloud_dns else ""
+        )
+        self._relay: Optional[tuple[str, str]] = None
+        if self._cloud_dns and relay_url:
+            try:
+                self._relay = parse_loxone_url(relay_url)
+            except ValueError:
+                _LOGGER.debug("Ignoring unparseable relay URL %s", relay_url)
+        self._relay_change_callback: Optional[Callable[..., Any]] = relay_change_callback
+
         # Generate random 16 byte AES initialisation vector (iv)
         try:
             self._iv: bytes = get_random_bytes(IV_BYTES)
@@ -532,6 +564,108 @@ class LoxoneBaseConnection:
         # handler.
         self._secured_queue: deque[SecuredCommand] = deque()
         self.message_header = None
+
+    @property
+    def relay_url(self) -> Optional[str]:
+        """The remembered relay (``scheme://host:port``), or None."""
+        return f"{self._relay[0]}://{self._relay[1]}" if self._relay else None
+
+    def _bootstrap_candidates(self) -> list[tuple[str, str, bool]]:
+        """Where to send the first bootstrap GET, in order: ``(scheme, url, via_relay)``.
+
+        With Cloud DNS: the remembered relay first (if any), then Cloud
+        DNS itself. Otherwise only the configured address.
+        """
+        if self._cloud_dns is None:
+            return [(self.scheme, self.url, False)]
+        candidates = []
+        if self._relay is not None and self._relay != self._cloud_dns:
+            candidates.append((*self._relay, True))
+        candidates.append((*self._cloud_dns, False))
+        return candidates
+
+    def _remember_relay(self, scheme: str, url: str) -> None:
+        """Store a new relay address and tell the caller (once per change)."""
+        if self._cloud_dns is None or (scheme, url) in (self._relay, self._cloud_dns):
+            return
+        self._relay = (scheme, url)
+        _LOGGER.info("Loxone Cloud DNS relay is now %s://%s", scheme, url)
+        if self._relay_change_callback is None:
+            return
+        try:
+            result = self._relay_change_callback(self.relay_url)
+            if asyncio.iscoroutine(result):
+                self._relay_callback_task = asyncio.ensure_future(result)
+        except Exception as e:  # noqa: BLE001 - persisting must not break the connection
+            _LOGGER.warning("relay_change_callback raised: %s", e, exc_info=True)
+
+    async def _fetch_api_key(
+        self, session: aiohttp.ClientSession | None
+    ) -> tuple[LoxoneAsyncHttpClient, dict, str | None]:
+        """First bootstrap GET (``jdev/cfg/apiKey``), relay first.
+
+        Returns the connector that answered (the rest of the bootstrap
+        uses it), the parsed apiKey value and the URL after any redirect.
+        A remembered relay gets one short try; if it fails or answers for
+        another Miniserver, Cloud DNS is asked as before.
+        """
+        candidates = self._bootstrap_candidates()
+        for index, (scheme, url, via_relay) in enumerate(candidates):
+            if (scheme, url) != (self.scheme, self.url):
+                self._apply_url(scheme, url)
+            connector = LoxoneAsyncHttpClient(
+                url=self.url,
+                username=self.username,
+                password=self.password,
+                scheme=self.scheme,
+                verify_ssl=self.verify_ssl,
+                session=session,
+            )
+            try:
+                if via_relay:
+                    connector.timeout = RELAY_PROBE_TIMEOUT
+                    data, redirect = await self._get_with_retry(
+                        CMD_GET_API_KEY, connector, max_tries=1
+                    )
+                    connector.timeout = TIMEOUT
+                else:
+                    data, redirect = await self._get_with_retry(CMD_GET_API_KEY, connector)
+                try:
+                    _value = LLResponse(data).value
+                except Exception as e:
+                    raise ValueError(f"Invalid API key response format: {e}") from e
+                # The json returned by the miniserver is invalid. It contains " and '.
+                try:
+                    value = json.loads(_value.replace("'", '"'))
+                except json.JSONDecodeError as e:
+                    raise ValueError(f"Invalid JSON in API key response: {e}") from e
+                if not isinstance(value, dict):
+                    raise ValueError(f"Expected dict response, got {type(value)}")
+                if via_relay and self._cloud_dns_serial:
+                    serial = normalize_serial(value.get("snr"))
+                    if serial and serial != self._cloud_dns_serial:
+                        raise ValueError(
+                            f"relay answered for Miniserver {serial}, "
+                            f"not {self._cloud_dns_serial}"
+                        )
+                if via_relay:
+                    _LOGGER.debug("Reached the Miniserver through the remembered relay")
+                return connector, value, redirect
+            except Exception as e:
+                if session is None:
+                    try:
+                        await connector.session.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+                if not via_relay or index == len(candidates) - 1:
+                    raise
+                _LOGGER.info(
+                    "Remembered Loxone relay %s://%s did not answer (%s); asking Cloud DNS",
+                    scheme,
+                    url,
+                    e,
+                )
+        raise RuntimeError("no bootstrap address")  # pragma: no cover
 
     def _apply_url(self, scheme: str, url: str) -> None:
         """Update ``self.scheme`` and ``self.url`` together.
@@ -2254,46 +2388,8 @@ class LoxoneConnection(LoxoneBaseConnection):
 
         connector = None
         try:
-            connector = LoxoneAsyncHttpClient(
-                url=self.url,
-                username=self.username,
-                password=self.password,
-                scheme=self.scheme,
-                verify_ssl=self.verify_ssl,
-                session=session,
-            )
-            api_key_redirect: str | None = None
-            api_key_data: bytes = b""
-            # Bounded exponential-backoff retry; transient network
-            # errors are retried with backoff ``min(base * 2**n, max)``
-            # plus ±20% jitter.  See :meth:`_get_with_retry`.
-            api_key_data, api_key_redirect = await self._get_with_retry(
-                CMD_GET_API_KEY, connector
-            )
-            # ``_get_with_retry`` returns the body bytes and the
-            # final URL after any redirect.  The previous inline loop
-            # used ``async with`` to release the aiohttp response, so
-            # by the time we reach here the body has been fully read
-            # and the response is closed.
-            data = api_key_data
-
-            try:
-                _value = LLResponse(data).value
-            except Exception as e:
-                raise ValueError(f"Invalid API key response format: {e}") from e
-
-            # The json returned by the miniserver is invalid. It contains " and '.
-            # We need to normalize it
-            try:
-                value = json.loads(_value.replace("'", '"'))
-            except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON in API key response: {e}") from e
-            except Exception as e:
-                raise ValueError(f"Failed to parse API key response: {e}") from e
-
-            # Validate response structure
-            if not isinstance(value, dict):
-                raise ValueError(f"Expected dict response, got {type(value)}")
+            # Relay first, Cloud DNS as the fallback (see _fetch_api_key).
+            connector, value, api_key_redirect = await self._fetch_api_key(session)
 
             version_str = value.get("version")
             if version_str:
@@ -2317,6 +2413,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                     new_scheme, new_host = parse_loxone_url(connector.base_url)
                     if new_scheme != self.scheme or new_host != self.url:
                         self._apply_url(new_scheme, new_host)
+                    self._remember_relay(self.scheme, self.url)
                 except Exception as e:
                     _LOGGER.warning(f"Failed to update URL for remote access: {e}")
 

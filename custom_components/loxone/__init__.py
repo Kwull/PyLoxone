@@ -575,6 +575,8 @@ async def async_setup_entry(hass, config_entry):
             hass.config_entries.async_update_entry(
                 config_entry,
                 data={
+                    # Keep everything else (the remembered relay).
+                    **config_entry.data,
                     "token": "",
                     "hash_alg": "",
                     "valid_until": "",
@@ -601,6 +603,8 @@ async def async_setup_entry(hass, config_entry):
             hass.config_entries.async_update_entry(
                 config_entry,
                 data={
+                    # Keep everything else (the remembered relay).
+                    **config_entry.data,
                     "token": "",
                     "hash_alg": "",
                     "valid_until": "",
