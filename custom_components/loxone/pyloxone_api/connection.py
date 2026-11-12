@@ -39,13 +39,14 @@ from .const import (AES_KEY_SIZE, CLOUD_DNS_HOST, CMD_AUTH_WITH_TOKEN, CMD_ENABL
                     CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN,
                     CMD_REQUEST_TOKEN_JSON_WEB, DELAY_CHECK_TOKEN_REFRESH,
                     IV_BYTES, KEEP_ALIVE_PERIOD, LLRSP_UNAUTHORISED_CODES,
-                    LOXAPPPATH, MAX_RECONNECT_DELAY, MAX_REFRESH_DELAY,
-                    MAX_WEBSOCKET_MESSAGE_SIZE, MESSAGE_HEADER_SIZE,
-                    RECONNECT_DELAY, RECONNECT_TRIES, RELAY_PROBE_TIMEOUT, SALT_BYTES,
-                    SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
-                    SECURED_COMMAND_TIMEOUT, TIMEOUT,
+                    LOXAPPPATH, LOXONE_USER_AGENT, MAX_RECONNECT_DELAY,
+                    MAX_REFRESH_DELAY, MAX_WEBSOCKET_MESSAGE_SIZE,
+                    MESSAGE_HEADER_SIZE, RECONNECT_DELAY, RECONNECT_TRIES,
+                    RELAY_PROBE_TIMEOUT, SALT_BYTES, SALT_MAX_AGE_SECONDS,
+                    SALT_MAX_USE_COUNT, SECURED_COMMAND_TIMEOUT, TIMEOUT,
                     TOKEN_PERMISSION, TOKEN_REFRESH_MAX_FAILURES,
-                    WEBSOCKET_CLOSE_TIMEOUT, WEBSOCKET_READ_TIMEOUT)
+                    WEBSOCKET_CLOSE_TIMEOUT, WEBSOCKET_READ_TIMEOUT,
+                    WS_SUBPROTOCOL)
 from .exceptions import (LoxoneAuthEscalatedError,
                          LoxoneConnectionClosedOk, LoxoneConnectionError,
                          LoxoneException, LoxoneMaxNumOfConnectionsError,
@@ -723,6 +724,14 @@ class LoxoneBaseConnection:
             "max_size": MAX_WEBSOCKET_MESSAGE_SIZE,
             "ping_interval": None,
             "close_timeout": WEBSOCKET_CLOSE_TIMEOUT,
+            # The official Loxone App/Config announce "remotecontrol" as
+            # Sec-WebSocket-Protocol. Since firmware 17.3.11.10 (Nov 2026)
+            # the Remote Connect (Cloud DNS) relay rejects websockets that do
+            # not offer it. Offer the documented subprotocol like the app does.
+            "subprotocols": [WS_SUBPROTOCOL],
+            # Present as a Loxone client instead of the "Python/… websockets/…"
+            # default, which is an obvious non-Loxone fingerprint.
+            "user_agent_header": LOXONE_USER_AGENT,
         }
 
     @property

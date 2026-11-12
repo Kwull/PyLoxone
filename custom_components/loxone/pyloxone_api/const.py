@@ -34,6 +34,20 @@ TIMEOUT: Final = 30
 # before the bootstrap falls back to Cloud DNS.
 CLOUD_DNS_HOST: Final = "dns.loxonecloud.com"
 RELAY_PROBE_TIMEOUT: Final = 10
+
+# WebSocket subprotocol the official Loxone App and Loxone Config announce
+# during the handshake. Loxone's "Communicating with the Miniserver" spec
+# requires "remotecontrol" as Sec-WebSocket-Protocol. Since firmware
+# 17.3.11.10 (Nov 2026) the Remote Connect (Cloud DNS) relay rejects
+# websocket clients that do not offer it.
+WS_SUBPROTOCOL: Final = "remotecontrol"
+
+# User-Agent sent on the HTTP bootstrap and the WebSocket handshake. The
+# library defaults ("Python/3.x aiohttp/…" / "Python/3.x websockets/…") are
+# an obvious non-Loxone fingerprint that Remote Connect's stricter access
+# control may key on. The exact string the Android app sends can be captured
+# with a packet trace (e.g. mitmproxy / PCAPdroid) and dropped in here.
+LOXONE_USER_AGENT: Final = "Loxone"
 KEEP_ALIVE_PERIOD: Final = 30
 THROTTLE_CHECK_TOKEN_STILL_VALID: Final = (
     90  # 90 * KEEP_ALIVE_PERIOD -> 43200 sek -> 6 h

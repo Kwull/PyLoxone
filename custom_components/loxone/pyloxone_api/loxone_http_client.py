@@ -12,7 +12,7 @@ from typing import AsyncIterator
 
 import aiohttp
 
-from .const import TIMEOUT
+from .const import LOXONE_USER_AGENT, TIMEOUT
 from .exceptions import (LoxoneMaxNumOfConnectionsError,
                          LoxoneServiceUnAvailableError,
                          LoxoneUnauthorisedError,
@@ -92,6 +92,9 @@ class LoxoneAsyncHttpClient:
         request_kwargs = {
             "auth": aiohttp.BasicAuth(self.username, self.password, encoding="utf-8"),
             "timeout": aiohttp.ClientTimeout(total=self.timeout),
+            # Present as a Loxone client rather than "Python/3.x aiohttp/…"
+            # so Remote Connect does not fingerprint the bootstrap requests.
+            "headers": {"User-Agent": LOXONE_USER_AGENT},
         }
         if self.scheme == "https":
             request_kwargs["ssl"] = self.verify_ssl

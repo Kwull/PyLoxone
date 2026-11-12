@@ -1426,6 +1426,29 @@ class TestBuildWebsocketOptions:
         # exercises the override path.
         assert TIMEOUT != 5.0
 
+    def test_remotecontrol_subprotocol_and_client_user_agent(self):
+        """Remote Connect rejects websockets that don't announce the
+        documented ``remotecontrol`` subprotocol, and the library's
+        default ``Python/…`` user-agent is an obvious non-Loxone
+        fingerprint.
+        """
+        from custom_components.loxone.pyloxone_api.const import (
+            LOXONE_USER_AGENT,
+            WS_SUBPROTOCOL,
+        )
+
+        conn = LoxoneConnection(
+            host="192.0.2.1",
+            username="user",
+            password="password",
+            port=8080,
+        )
+        opts = conn._build_websocket_options()
+        assert opts["subprotocols"] == [WS_SUBPROTOCOL]
+        assert opts["subprotocols"] == ["remotecontrol"]
+        assert opts["user_agent_header"] == LOXONE_USER_AGENT
+        assert "Python" not in opts["user_agent_header"]
+
 
 class TestSpawnTask:
     """``_spawn_task`` / ``_prune_tasks`` — tracked background tasks.
