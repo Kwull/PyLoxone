@@ -48,12 +48,17 @@ RELAY_PROBE_TIMEOUT: Final = 10
 # websocket clients that do not offer it.
 WS_SUBPROTOCOL: Final = "remotecontrol"
 
-# User-Agent sent on the HTTP bootstrap and the WebSocket handshake. The
-# library defaults ("Python/3.x aiohttp/…" / "Python/3.x websockets/…") are
-# an obvious non-Loxone fingerprint that Remote Connect's stricter access
-# control may key on. The exact string the Android app sends can be captured
-# with a packet trace (e.g. mitmproxy / PCAPdroid) and dropped in here.
-LOXONE_USER_AGENT: Final = "Loxone"
+# User-Agent sent on the HTTP bootstrap and the WebSocket handshake.
+#
+# Remote Connect's edge (``loxone-lcs-proxy``, header ``x-lcs-service``) only
+# permits clients whose User-Agent looks like the official app: it answers
+# 403 "Request not permitted" to ``Python/…``, ``curl/…`` and a bare "Loxone",
+# but 307-redirects for an Android ``Dalvik/…`` UA (verified against a live
+# Miniserver relay, Nov 2026). The official Android app sends the platform
+# default ``Dalvik/2.1.0 (Linux; U; Android …)`` from HttpURLConnection.
+LOXONE_USER_AGENT: Final = (
+    "Dalvik/2.1.0 (Linux; U; Android 15; en-US; Pixel 8 Build/AP1A.240505.004)"
+)
 KEEP_ALIVE_PERIOD: Final = 30
 THROTTLE_CHECK_TOKEN_STILL_VALID: Final = (
     90  # 90 * KEEP_ALIVE_PERIOD -> 43200 sek -> 6 h
