@@ -15,8 +15,10 @@ import re
 
 # The app matches ``/proxy/<uuid>`` (optional) followed by the rest of the
 # path; group 2 of the regex is the digest URI for a Remote Connect relay.
+# Loxone UUIDs are ``8-4-4-16`` hex groups (e.g. ``1cafb907-0155-aec4-ffff627b8077ae1f``),
+# not the standard ``8-4-4-4-12``.
 _PROXY_PREFIX_RE = re.compile(
-    r"(/proxy/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?(/?.*)",
+    r"(/proxy/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{16})?(/?.*)",
     re.IGNORECASE,
 )
 _CHALLENGE_RE = re.compile(r'(\w+)\s*=\s*(?:"((?:[^"\\]|\\.)*)"|([^\s,]+))')
