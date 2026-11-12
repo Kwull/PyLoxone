@@ -120,6 +120,20 @@ class LoxoneIntercomCamera(Camera):
         coordinator = self._coordinator()
         if coordinator is None or coordinator.api is None:
             return None
+        # TEMPORARY DEBUG: query securedDetails once to learn the real
+        # stream URL + auth (response logged at WARNING in connection.py).
+        if not getattr(self, "_debug_secured_sent", False):
+            self._debug_secured_sent = True
+            try:
+                if coordinator.api.is_connected:
+                    cmd = (
+                        f"jdev/sps/io/{self._control.get('uuidAction')}"
+                        f"/securedDetails/{self._device_uuid}"
+                    )
+                    await coordinator.api._send_text_command(cmd, encrypted=False)
+                    _LOGGER.warning("Sent securedDetails query: %s", cmd)
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning("securedDetails query failed: %s", err)
         base = self._base_url()
         if not base:
             return None
