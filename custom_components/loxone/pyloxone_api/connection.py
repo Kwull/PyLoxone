@@ -3305,15 +3305,6 @@ class LoxoneConnection(LoxoneBaseConnection):
                         f"Unexpected error processing token refresh: {e}. "
                         f"Response: {getattr(mess_obj, 'value_as_dict', 'N/A')}"
                     )
-            # TEMPORARY DEBUG: log securedDetails (intercom video) responses
-            elif isinstance(mess_obj, TextMessage) and "securedDetails" in str(
-                getattr(mess_obj, "message", "")
-            ):
-                _LOGGER.warning(
-                    "Loxone securedDetails response: message=%s value=%s",
-                    getattr(mess_obj, "message", None),
-                    getattr(mess_obj, "value_as_dict", None),
-                )
             # Handle binary file
             elif isinstance(mess_obj, BinaryFile):
                 pass

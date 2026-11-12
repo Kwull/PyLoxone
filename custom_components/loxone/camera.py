@@ -2,25 +2,18 @@
 Loxone intercom camera.
 
 One camera per ``IntercomV2`` control that has a ``deviceUuid`` in its
-``details``. The image is the Miniserver's video proxy endpoint
-``/proxy/<uuid>/jpg/image.jpg``.
+``details``. The image is the Miniserver's video-proxy snapshot
+``/proxy/<deviceUuid>/jpg/image.jpg``.
 
-Authentication matches what the official app does for live intercom video
-(``shared-app.js`` ``_appendLxIntercomAuth``): a seed-based query-string
-signature computed from the Miniserver username/password —
-
-    auth = MD5( MD5(user) : seed : MD5(password) )   (uppercase hex)
-
-appended as ``?auth=…&seed=…``. The snapshot is fetched on demand and
-refreshed when the intercom rings (``bell`` 0 -> 1).
+Auth is tried in order: the Miniserver JWT as a Bearer token (what the app
+uses for the doorbell thumbnail, ``GetIntercomImageUseCase``), then HTTP
+Basic auth with the Miniserver username/password. The snapshot is fetched on
+demand and refreshed when the intercom rings (``bell`` 0 -> 1).
 """
 
 from __future__ import annotations
 
-import hashlib
 import logging
-import secrets
-import string
 
 import aiohttp
 from homeassistant.components.camera import Camera
@@ -37,20 +30,6 @@ _LOGGER = logging.getLogger(__name__)
 
 SNAPSHOT_PATH = "/proxy/{device_uuid}/jpg/image.jpg"
 _TIMEOUT = aiohttp.ClientTimeout(total=15)
-_SEED_ALPHABET = string.ascii_letters + string.digits
-
-
-def _intercom_stream_auth(user: str, password: str) -> tuple[str, str]:
-    """Return ``(auth, seed)`` for the intercom video proxy.
-
-    Mirrors the app's ``_appendLxIntercomAuth``: a 31-char random seed and
-    ``auth = MD5( MD5(user) ":" seed ":" MD5(password) )``, uppercase hex.
-    """
-    seed = "".join(secrets.choice(_SEED_ALPHABET) for _ in range(31))
-    h_user = hashlib.md5(user.encode("utf-8")).hexdigest().upper()
-    h_pass = hashlib.md5(password.encode("utf-8")).hexdigest().upper()
-    auth = hashlib.md5(f"{h_user}:{seed}:{h_pass}".encode("utf-8")).hexdigest().upper()
-    return auth, seed
 
 
 async def async_setup_entry(
@@ -120,39 +99,36 @@ class LoxoneIntercomCamera(Camera):
         coordinator = self._coordinator()
         if coordinator is None or coordinator.api is None:
             return None
-        # TEMPORARY DEBUG: query securedDetails once to learn the real
-        # stream URL + auth (response logged at WARNING in connection.py).
-        if not getattr(self, "_debug_secured_sent", False):
-            self._debug_secured_sent = True
-            try:
-                if coordinator.api.is_connected:
-                    cmd = (
-                        f"jdev/sps/io/{self._control.get('uuidAction')}"
-                        f"/securedDetails/{self._device_uuid}"
-                    )
-                    await coordinator.api._send_text_command(cmd, encrypted=False)
-                    _LOGGER.warning("Sent securedDetails query: %s", cmd)
-            except Exception as err:  # noqa: BLE001
-                _LOGGER.warning("securedDetails query failed: %s", err)
         base = self._base_url()
         if not base:
             return None
+        url = base + SNAPSHOT_PATH.format(device_uuid=self._device_uuid)
         user = coordinator.api.username
         password = coordinator.api.password
-        auth, seed = _intercom_stream_auth(user, password)
-        url = (
-            base
-            + SNAPSHOT_PATH.format(device_uuid=self._device_uuid)
-            + f"?auth={auth}&seed={seed}"
-        )
+        token = coordinator.api.get_token_dict().get("token")
         session = async_get_clientsession(self.hass)
-        try:
-            async with session.get(url, timeout=_TIMEOUT) as resp:
-                if resp.status == 200:
-                    return await resp.read()
-                _LOGGER.debug(
-                    "Intercom snapshot returned HTTP %s from %s", resp.status, url
-                )
-        except Exception as err:  # noqa: BLE001 - a snapshot must never break HA
-            _LOGGER.debug("Intercom snapshot failed (%s): %s", url, err)
+
+        attempts: list[tuple[str, dict, aiohttp.BasicAuth | None]] = []
+        if token:
+            attempts.append(("bearer", {"Authorization": f"Bearer {token}"}, None))
+        attempts.append(("basic", {}, aiohttp.BasicAuth(user, password)))
+
+        for name, headers, auth in attempts:
+            kwargs: dict = {"timeout": _TIMEOUT}
+            if headers:
+                kwargs["headers"] = headers
+            if auth:
+                kwargs["auth"] = auth
+            try:
+                async with session.get(url, **kwargs) as resp:
+                    if resp.status == 200:
+                        return await resp.read()
+                    _LOGGER.warning(
+                        "Intercom snapshot (%s auth) returned HTTP %s from %s",
+                        name,
+                        resp.status,
+                        url,
+                    )
+            except Exception as err:  # noqa: BLE001 - a snapshot must never break HA
+                _LOGGER.warning("Intercom snapshot (%s auth) failed: %s", name, err)
         return None
