@@ -5,10 +5,6 @@
 ![HACS](https://img.shields.io/github/actions/workflow/status/JoDehli/PyLoxone/validate.yaml?label=HACS)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 
-If you want to support my work on this binding you can buy me a coffee:
-
-<a href="https://www.buymeacoffee.com/JoDehli" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
-
 
 Home Assistant binding for Loxone. 
 
@@ -43,14 +39,20 @@ Change 123456789ABC to your miniserver Serial Number.
 5. Add the Integration and fill out all required fields
 6. Restart Home-Assistant
 
-## Hacs installation
-1. Install hacs to your homeassistant installation. See https://hacs.xyz/docs/use/download/download/
-2. Add this repository to hacs: https://github.com/JoDehli/PyLoxone
-3. Install the PyLoxone binding 
-4. Restart Home-Assistant
-5. Go to Configuration -> Integrations and search for Pyloxone
-6. Add the Integration and fill out all required fields
-7. Restart Home-Assistant
+## Marketplace installation (Home Assistant 2026.11 and newer)
+HACS is built into Home Assistant as the Marketplace since 2026.11, so there is nothing to download.
+1. Go to **Settings** > **Marketplace**.
+2. In the upper-right corner, select **Add from link**.
+3. Under **GitHub link**, enter `https://github.com/Kwull/PyLoxone` and select **Add**.
+   If asked, connect the Marketplace to GitHub (device code sign-in), and pick **Integration** as the type.
+4. Open PyLoxone in the list, select **Install**, check the version and select **Install** again.
+5. Restart Home Assistant if asked (a repair under **Settings** > **System** > **Repairs** can do it).
+6. Go to **Settings** > **Devices & services** > **Add integration** and search for PyLoxone.
+7. Fill out all required fields.
+
+See the [Marketplace documentation](https://next.home-assistant.io/integrations/marketplace/).
+On Home Assistant 2026.10 and older, install [HACS](https://hacs.xyz/docs/use/download/download/) first and add
+`https://github.com/Kwull/PyLoxone` as a custom repository (type Integration).
 
 ## Supported Loxone Entities
 Currently, this integration supports the following Loxone entities by mapping them to Home Assistant entities.
@@ -272,7 +274,7 @@ sensor:
     device_class: "temperature"    # Use device classes from homeassitant for example temperature, humidity, voltage   
     state_class: "total"           # measurement, total or total_increasing see https://developers.home-assistant.io/docs/core/entity/sensor/#long-term-statistics
 ```
-In this example a sensor with the name roomcomforttemperature (sensor.roomcomforttemperature) is created. The sensor is listening to all events from the loxone system with the specified uuid ([How do you get the uuid?](https://github.com/JoDehli/PyLoxone?tab=readme-ov-file#how-do-you-get-the-uuid)).
+In this example a sensor with the name roomcomforttemperature (sensor.roomcomforttemperature) is created. The sensor is listening to all events from the loxone system with the specified uuid ([How do you get the uuid?](#how-do-you-get-the-uuid)).
 
 You can also send any websocket to a loxone entity for example to increase and decrease the temperature of a room controller v2. Here is a script that raises and lowers the temperature in 0.5 °C steps:
 
