@@ -30,9 +30,15 @@ WEBSOCKET_CLOSE_TIMEOUT: Final = 10  # seconds to wait for a clean close
 WEBSOCKET_READ_TIMEOUT: Final = 90
 DELAY_CHECK_TOKEN_REFRESH: Final = 20
 TIMEOUT: Final = 30
-# Cloud DNS: resolver host, and how long one try of a remembered relay may take
-# before the bootstrap falls back to Cloud DNS.
-CLOUD_DNS_HOST: Final = "dns.loxonecloud.com"
+# Loxone Remote Connect entry points. Since firmware 16.3 (and with a
+# "different URL and different response" since 17.0) Loxone moved the entry
+# point from the legacy Cloud DNS host to the "connect" service:
+#   https://connect.loxonecloud.com/<serial>  ->  307  ->  https://<relay>/<path>
+# The legacy host is retired and now answers 403 "Request not permitted".
+CLOUD_DNS_HOST: Final = "dns.loxonecloud.com"          # legacy (deprecated)
+REMOTE_CONNECT_HOST: Final = "connect.loxonecloud.com"  # current entry point
+# How long one try of a remembered relay may take before the bootstrap falls
+# back to the Remote Connect entry point.
 RELAY_PROBE_TIMEOUT: Final = 10
 
 # WebSocket subprotocol the official Loxone App and Loxone Config announce

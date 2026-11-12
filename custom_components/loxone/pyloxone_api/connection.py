@@ -42,8 +42,9 @@ from .const import (AES_KEY_SIZE, CLOUD_DNS_HOST, CMD_AUTH_WITH_TOKEN, CMD_ENABL
                     LOXAPPPATH, LOXONE_USER_AGENT, MAX_RECONNECT_DELAY,
                     MAX_REFRESH_DELAY, MAX_WEBSOCKET_MESSAGE_SIZE,
                     MESSAGE_HEADER_SIZE, RECONNECT_DELAY, RECONNECT_TRIES,
-                    RELAY_PROBE_TIMEOUT, SALT_BYTES, SALT_MAX_AGE_SECONDS,
-                    SALT_MAX_USE_COUNT, SECURED_COMMAND_TIMEOUT, TIMEOUT,
+                    RELAY_PROBE_TIMEOUT, REMOTE_CONNECT_HOST, SALT_BYTES,
+                    SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
+                    SECURED_COMMAND_TIMEOUT, TIMEOUT,
                     TOKEN_PERMISSION, TOKEN_REFRESH_MAX_FAILURES,
                     WEBSOCKET_CLOSE_TIMEOUT, WEBSOCKET_READ_TIMEOUT,
                     WS_SUBPROTOCOL)
@@ -231,9 +232,17 @@ def _command_path_for_log(command: str) -> str:
     return f"{path}/…" if len(parts) > keep else path
 
 
-def is_cloud_dns_host(hostname: str | None) -> bool:
-    """True for Loxone's Cloud DNS resolver host (``dns.loxonecloud.com``)."""
-    return bool(hostname) and hostname.lower().rstrip(".") == CLOUD_DNS_HOST
+def is_cloud_host(hostname: str | None) -> bool:
+    """True for a Loxone Remote Connect entry point.
+
+    Both the legacy Cloud DNS host (``dns.loxonecloud.com``) and the current
+    "connect" host (``connect.loxonecloud.com``) resolve ``/<serial>`` to the
+    Miniserver's relay via a 307 redirect. Loxone retired the legacy host
+    (firmware 16.3+, enforced with the Nov 2026 security update) — it now
+    answers 403 — so new configurations must use ``connect.loxonecloud.com``.
+    """
+    host = (hostname or "").lower().rstrip(".")
+    return host in (CLOUD_DNS_HOST, REMOTE_CONNECT_HOST)
 
 
 def normalize_serial(serial: str | None) -> str:
@@ -458,14 +467,15 @@ class LoxoneBaseConnection:
         else:
             self.url = f"{netloc}{parsed.path}"
 
-        # Cloud DNS (``dns.loxonecloud.com/<serial>``) answers every
-        # bootstrap with a redirect to the Miniserver's relay
+        # Remote Connect (``connect.loxonecloud.com/<serial>``, formerly
+        # ``dns.loxonecloud.com/<serial>``) answers every bootstrap with a
+        # redirect to the Miniserver's relay
         # (``https://<ip>.<serial>.dyndns.loxonecloud.com:<port>``).
         # The relay is remembered (``relay_url``, persisted by the caller
-        # through ``relay_change_callback``) and tried first, so Cloud DNS
-        # is only asked when the relay has moved.
+        # through ``relay_change_callback``) and tried first, so the connect
+        # service is only asked when the relay has moved.
         self._cloud_dns: Optional[tuple[str, str]] = (
-            (self.scheme, self.url) if is_cloud_dns_host(netloc) else None
+            (self.scheme, self.url) if is_cloud_host(netloc) else None
         )
         self._cloud_dns_serial: str = (
             normalize_serial(parsed.path.strip("/").split("/")[0]) if self._cloud_dns else ""

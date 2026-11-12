@@ -25,10 +25,15 @@ If you have the gen2 miniserver you should connect via local access. It is more 
 Please use this only in case local access is not possible.
 
 Example:
-- Miniserver Ip: https://dns.loxonecloud.com/123456789ABC
+- Miniserver Ip: https://connect.loxonecloud.com/123456789ABC
 - Port: 443
 
 Change 123456789ABC to your miniserver Serial Number.
+
+> Since Miniserver firmware 16.3 (enforced with the Nov 2026 security update)
+> Loxone serves Remote Connect through `connect.loxonecloud.com`. The old
+> `dns.loxonecloud.com` entry point is retired and now answers 403
+> "Request not permitted", so use `connect.loxonecloud.com`.
 
 ## Manual installation
 1. Download the zip file and extract all files.
@@ -67,14 +72,14 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 - Radio Buttons
 - Miniserver notifications (event `loxone_notification` and the sensor "Loxone Last Notification")
 
-## Cloud DNS: the relay is remembered
+## Remote Connect: the relay is remembered
 
-With a Cloud DNS address (`https://dns.loxonecloud.com/<serial>`), Loxone's Cloud DNS answers with a redirect to the
-Miniserver's relay (`https://<ip>.<serial>.dyndns.loxonecloud.com:<port>`). The integration remembers that relay in
-the config entry (next to the token) and goes there first on every setup, reload, restart and reconnect, with one
-10-second try. Cloud DNS is only asked when the relay does not answer or answers for another Miniserver (a new public
-IP or port), and the new relay is remembered again. So Cloud DNS is needed only when the relay moves, not on every
-setup.
+With a Remote Connect address (`https://connect.loxonecloud.com/<serial>`), Loxone's connect service answers with a
+307 redirect to the Miniserver's relay (`https://<ip>.<serial>.dyndns.loxonecloud.com:<port>`). The integration
+remembers that relay in the config entry (next to the token) and goes there first on every setup, reload, restart and
+reconnect, with one 10-second try. The connect service is only asked when the relay does not answer or answers for
+another Miniserver (a new public IP or port), and the new relay is remembered again. So the connect service is needed
+only when the relay moves, not on every setup.
 
 ## IntercomV2 (Loxone Intercom Gen. 2)
 

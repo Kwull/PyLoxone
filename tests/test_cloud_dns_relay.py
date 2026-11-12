@@ -19,10 +19,12 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.loxone.const import CONF_RELAY_URL
-from custom_components.loxone.pyloxone_api.connection import LoxoneConnection, is_cloud_dns_host, normalize_serial
+from custom_components.loxone.pyloxone_api.connection import LoxoneConnection, is_cloud_host, normalize_serial
 
 SERIAL = "504F94A22BD7"
 CLOUD_DNS = f"https://dns.loxonecloud.com/{SERIAL}"
+CONNECT = f"https://connect.loxonecloud.com/{SERIAL}"
+CLOUD_HOSTS = (CLOUD_DNS, CONNECT)
 # Hostnames come back lower-cased from URL parsing, as they do in real life.
 RELAY = f"https://168-119-185-175.{SERIAL.lower()}.dyndns.loxonecloud.com:44675"
 NEW_RELAY = f"https://168-119-185-176.{SERIAL.lower()}.dyndns.loxonecloud.com:44680"
@@ -81,12 +83,14 @@ class _CloudSession:
 
     def get(self, url, **kwargs):
         self.calls.append(url)
-        if url.startswith(CLOUD_DNS):
-            # Cloud DNS redirects; aiohttp follows and reports the final URL.
-            if self.relay in self.dead:
-                return _CM(error=ConnectionError(f"refused: {self.relay}"))
-            path = url[len(CLOUD_DNS) :]
-            return self._serve(self.relay, path)
+        for cloud in CLOUD_HOSTS:
+            if url.startswith(cloud):
+                # The connect service redirects; aiohttp follows and reports
+                # the final URL.
+                if self.relay in self.dead:
+                    return _CM(error=ConnectionError(f"refused: {self.relay}"))
+                path = url[len(cloud) :]
+                return self._serve(self.relay, path)
         for base in (RELAY, NEW_RELAY):
             if url.startswith(base):
                 if base in self.dead:
@@ -115,16 +119,38 @@ def _conn(relay_url: str | None = None, seen: list | None = None) -> LoxoneConne
 
 
 def _hosts(session: _CloudSession) -> list[str]:
-    return ["cloud" if c.startswith(CLOUD_DNS) else c.split("/")[2] for c in session.calls]
+    return ["cloud" if any(c.startswith(h) for h in CLOUD_HOSTS) else c.split("/")[2] for c in session.calls]
 
 
 def test_helpers():
-    assert is_cloud_dns_host("dns.loxonecloud.com")
-    assert is_cloud_dns_host("DNS.LoxoneCloud.com.")
-    assert not is_cloud_dns_host("168-119-185-175.504F94A22BD7.dyndns.loxonecloud.com")
-    assert not is_cloud_dns_host("192.168.1.10")
+    assert is_cloud_host("dns.loxonecloud.com")
+    assert is_cloud_host("DNS.LoxoneCloud.com.")
+    assert is_cloud_host("connect.loxonecloud.com")
+    assert is_cloud_host("CONNECT.LoxoneCloud.com.")
+    assert not is_cloud_host("168-119-185-175.504F94A22BD7.dyndns.loxonecloud.com")
+    assert not is_cloud_host("192.168.1.10")
     assert normalize_serial("50:4F:94:A2:2B:D7") == SERIAL
     assert normalize_serial("504f94a22bd7") == SERIAL
+
+
+async def test_connect_entry_point_remembers_the_relay():
+    """The current entry point (``connect.loxonecloud.com``) works like the
+    legacy Cloud DNS host: 307 redirect to the relay, which is remembered."""
+    session = _CloudSession(RELAY)
+    seen: list[str] = []
+    conn = LoxoneConnection(
+        host=CONNECT,
+        port=443,
+        username="user",
+        password="pass",
+        relay_change_callback=seen.append,
+    )
+    await conn.open(session, connect_websocket=False)
+
+    assert _hosts(session)[0] == "cloud"
+    assert all("dyndns" in c for c in session.calls[1:])
+    assert conn.relay_url == RELAY
+    assert seen == [RELAY]
 
 
 async def test_first_setup_asks_cloud_dns_and_remembers_the_relay():
