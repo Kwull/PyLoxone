@@ -1,9 +1,9 @@
 # PyLoxone
 ![Installs](https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=Installations&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.loxone.total)
-[![Latest release](https://img.shields.io/github/v/release/JoDehli/PyLoxone?label=version)](https://github.com/JoDehli/PyLoxone/releases/latest)
-![Hassfest](https://img.shields.io/github/actions/workflow/status/JoDehli/PyLoxone/hassfest.yaml?label=hassfest)
-![HACS](https://img.shields.io/github/actions/workflow/status/JoDehli/PyLoxone/validate.yaml?label=HACS)
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![Version](https://img.shields.io/github/manifest-json/v/Kwull/PyLoxone/master?filename=custom_components%2Floxone%2Fmanifest.json&label=version)](https://github.com/Kwull/PyLoxone/commits/master)
+[![Hassfest](https://img.shields.io/github/actions/workflow/status/Kwull/PyLoxone/hassfest.yaml?branch=master&label=hassfest)](https://github.com/Kwull/PyLoxone/actions/workflows/hassfest.yaml)
+[![HACS](https://img.shields.io/github/actions/workflow/status/Kwull/PyLoxone/validate.yaml?branch=master&label=HACS)](https://github.com/Kwull/PyLoxone/actions/workflows/validate.yaml)
+[![Marketplace](https://img.shields.io/badge/Marketplace-Custom-orange.svg)](https://next.home-assistant.io/integrations/marketplace/)
 
 
 Home Assistant binding for Loxone. 
