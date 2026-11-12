@@ -26,10 +26,12 @@ Entities, all on one device per intercom:
 * ``binary_sensor`` "<name> Online" (diagnostic), device class ``connectivity``.
 * ``button`` "<name> <sub-control name>" per sub-control (``pulse``).
 
-No camera: ``jdev/sps/io/<uuid>/securedDetails`` (the V1 ``Intercom`` way to
-the video stream) answers ``{}`` for an ``IntercomV2``; the Gen. 2 intercom
-streams WebRTC to the Loxone app, and its own MJPEG endpoint sits on the
-intercom's LAN address, which a remote Miniserver connection cannot reach.
+A snapshot camera (``camera.py``, Phase 1) reads
+``/proxy/<deviceUuid>/jpg/image.jpg``. ``jdev/sps/io/<uuid>/securedDetails``
+(the V1 ``Intercom`` way to the video stream) answers ``{}`` for an
+``IntercomV2``; the Gen. 2 intercom streams WebRTC to the Loxone app, and
+its own MJPEG endpoint sits on the intercom's LAN address, which a remote
+Miniserver connection cannot reach.
 """
 
 from __future__ import annotations
