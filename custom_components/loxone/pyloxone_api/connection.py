@@ -246,7 +246,7 @@ def is_cloud_host(hostname: str | None) -> bool:
 
 
 def normalize_serial(serial: str | None) -> str:
-    """``50:4F:94:A2:2B:D7`` and ``504f94a22bd7`` -> ``504F94A22BD7``."""
+    """``00:11:22:AA:BB:CC`` and ``001122aabbcc`` -> ``001122AABBCC``."""
     return (serial or "").replace(":", "").replace("-", "").strip().upper()
 
 

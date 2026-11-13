@@ -92,7 +92,7 @@ def test_bell_follows_the_bell_state_and_collects_the_details(loxapp3):
     assert attrs["address"] == "192.168.10.51"
     assert attrs["version"] == "17.0.6.1"
     assert attrs["muted"] is False
-    assert attrs["device_serial"] == "504F94E0C29E"
+    assert attrs["device_serial"] == "001122AABBDD"
     assert attrs["state_uuid"] == BELL
     assert attrs["device_type"] == "IntercomV2"
     assert attrs["room"] == "Parlour"

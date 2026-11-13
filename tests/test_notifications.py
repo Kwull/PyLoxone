@@ -28,7 +28,7 @@ RAW = json.dumps(
         "type": 10,
         "title": "Intercom 4AC",
         "message": "Dzwonek",
-        "data": {"lvl": 1, "uuid": "1e5440ea-02c9-b891-ffff52ab80121708"},
+        "data": {"lvl": 1, "uuid": "00112233-4455-6677-8899aabbccddee"},
     }
 )
 
@@ -48,7 +48,7 @@ def test_documented_json_is_flattened():
     assert fields["message"] == "Dzwonek"
     assert fields["level"] == 1
     assert fields["level_name"] == "info"
-    assert fields["control_uuid"] == "1e5440ea-02c9-b891-ffff52ab80121708"
+    assert fields["control_uuid"] == "00112233-4455-6677-8899aabbccddee"
     assert fields["raw"] == RAW
     assert notification_state(fields) == "Intercom 4AC: Dzwonek"
 

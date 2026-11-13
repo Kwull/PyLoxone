@@ -21,7 +21,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.loxone.const import CONF_RELAY_URL
 from custom_components.loxone.pyloxone_api.connection import LoxoneConnection, is_cloud_host, normalize_serial
 
-SERIAL = "504F94A22BD7"
+SERIAL = "001122AABBCC"
 CLOUD_DNS = f"https://dns.loxonecloud.com/{SERIAL}"
 CONNECT = f"https://connect.loxonecloud.com/{SERIAL}"
 CLOUD_HOSTS = (CLOUD_DNS, CONNECT)
@@ -78,7 +78,7 @@ class _CloudSession:
         self.calls: list[str] = []
 
     def _api_key(self, base: str) -> bytes:
-        snr = self.serials.get(base, "50:4F:94:A2:2B:D7")
+        snr = self.serials.get(base, "00:11:22:AA:BB:CC")
         return _ll(json.dumps({"version": "17.2.10.21", "snr": snr, "local": False}).replace('"', "'"))
 
     def get(self, url, **kwargs):
@@ -127,10 +127,10 @@ def test_helpers():
     assert is_cloud_host("DNS.LoxoneCloud.com.")
     assert is_cloud_host("connect.loxonecloud.com")
     assert is_cloud_host("CONNECT.LoxoneCloud.com.")
-    assert not is_cloud_host("168-119-185-175.504F94A22BD7.dyndns.loxonecloud.com")
+    assert not is_cloud_host("168-119-185-175.001122AABBCC.dyndns.loxonecloud.com")
     assert not is_cloud_host("192.168.1.10")
-    assert normalize_serial("50:4F:94:A2:2B:D7") == SERIAL
-    assert normalize_serial("504f94a22bd7") == SERIAL
+    assert normalize_serial("00:11:22:AA:BB:CC") == SERIAL
+    assert normalize_serial("001122aabbcc") == SERIAL
 
 
 async def test_connect_entry_point_remembers_the_relay():
